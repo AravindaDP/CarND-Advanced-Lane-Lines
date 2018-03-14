@@ -42,12 +42,45 @@ class Line():
                 self.diffs = self.current_fit - previous_fit
             fitx = self.current_fit[0]*self.yvals*self.yvals + self.current_fit[1]*self.yvals + self.current_fit[2]
             fitx = np.array(fitx,np.int32)
-
+            #Sanity check on polynomial fit
+            if self.best_fit is not None:
+                fitx = self.filter_fitx(fitx, margin)
             if fitx is not None:
                 self.detected = True
                 self.recent_xfitted.append(fitx)
                 self.bestx = np.average(self.recent_xfitted[-smooth_factor:],axis = 0)
                 self.best_fit = np.polyfit(self.yvals, self.bestx, 2)
+        
+    def filter_fitx(self, fitx, margin):
+        run_len = max(self.ally[-1])-min(self.ally[-1])
+        #best_fitx = self.best_fit[0]*self.yvals*self.yvals + self.best_fit[1]*self.yvals + self.best_fit[2]
+        if not self.detected and len(self.allx[-1])>len(fitx)/2 and run_len > len(fitx)/3:
+            for i in range(len(fitx)):
+                x_min = self.bestx[i] - margin*3
+                x_max = self.bestx[i] + margin*3
+            
+                fitx[i] = max(x_min,min(fitx[i],x_max))
+            return fitx
+
+        if abs(self.bestx[0] - fitx[0]) > margin and run_len < len(fitx)/4:
+            self.detected = False
+            return None
+        if abs(self.bestx[-1] - fitx[-1]) > margin and run_len < len(fitx)/4:
+            self.detected = False
+            return None
+        if abs(self.bestx[0] - fitx[0]) > 2.5*margin:
+            self.detected = False
+            return None
+        if abs(self.bestx[-1] - fitx[-1]) > 2.5*margin:
+            self.detected = False
+            return None
+        for i in range(len(fitx)):
+            x_min = self.bestx[i] - margin
+            x_max = self.bestx[i] + margin
+            
+            fitx[i] = max(x_min,min(fitx[i],x_max))
+            
+        return fitx
         
 
 class LineTracker():
@@ -80,77 +113,100 @@ class LineTracker():
     # the main tracking function for finding and storing lane segment positions
     def find_lane_pixels(self, warped):
 
-        # window settings
-        window_width = self.window_width
-        window_height = self.window_height
-        margin = self.margin # How much to slide left and right for searching
+        if self.left_line.detected == False or self.right_line.detected == False:
+            # window settings
+            window_width = self.window_width
+            window_height = self.window_height
+            margin = self.margin # How much to slide left and right for searching
 
-        window = np.ones(window_width) # Create our window template that we will use for convolutions
+            window = np.ones(window_width) # Create our window template that we will use for convolutions
 
-        # First find the two starting positions for the left and right lane by using np.sum to get the vertical image slice
-        # and then np.convolve the vertical image slice with the window template
+            # First find the two starting positions for the left and right lane by using np.sum to get the vertical image slice
+            # and then np.convolve the vertical image slice with the window template
 
-        # Sum one third from bottom of image to get slice, could use a different ratio
-        l_sum = np.sum(warped[int(2*warped.shape[0]/3):,:int(warped.shape[1]/2)], axis=0)
-        l_center = np.argmax(np.convolve(window,l_sum))-window_width/2
-        r_sum = np.sum(warped[int(2*warped.shape[0]/3):,int(warped.shape[1]/2):], axis=0)
-        r_center = np.argmax(np.convolve(window,r_sum))-window_width/2+int(warped.shape[1]/2)
+            # Sum one third from bottom of image to get slice, could use a different ratio
+            l_sum = np.sum(warped[int(2*warped.shape[0]/3):,:int(warped.shape[1]/2)], axis=0)
+            l_center = np.argmax(np.convolve(window,l_sum))-window_width/2
+            r_sum = np.sum(warped[int(2*warped.shape[0]/3):,int(warped.shape[1]/2):], axis=0)
+            r_center = np.argmax(np.convolve(window,r_sum))-window_width/2+int(warped.shape[1]/2)
     
-        # Identify the x and y positions of all nonzero pixels in the image
-        nonzero = warped.nonzero()
-        nonzeroy = np.array(nonzero[0])
-        nonzerox = np.array(nonzero[1])
+            # Identify the x and y positions of all nonzero pixels in the image
+            nonzero = warped.nonzero()
+            nonzeroy = np.array(nonzero[0])
+            nonzerox = np.array(nonzero[1])
         
-        # Create empty lists to receive left and right lane pixel indices
-        left_lane_inds = []
-        right_lane_inds = []
+            # Create empty lists to receive left and right lane pixel indices
+            left_lane_inds = []
+            right_lane_inds = []
         
-        # Go through each layer looking for max pixel locations
-        for level in range((int)(warped.shape[0]/window_height)):
-            # convolve the window into the vertical slice of the image
-            image_layer = np.sum(warped[int(warped.shape[0]-(level+1)*window_height):int(warped.shape[0]-level*window_height),:], axis=0)
-            conv_signal = np.convolve(window, image_layer)
-            # Find the best left centroid by using past left center as a reference
-            # Use window_width/2 as offset because convolution signal reference is at right side of window, not center of window
-            offset = window_width/2
-            l_min_index = int(max(l_center+offset-margin,0))
-            l_max_index = int(min(l_center+offset+margin,warped.shape[1]))
-            if np.max(conv_signal[l_min_index:l_max_index]) > 10000:
-                l_center = np.argmax(conv_signal[l_min_index:l_max_index])+l_min_index-offset
-            # Find the best right centroid by using past right center as a reference
-            r_min_index = int(max(r_center+offset-margin,0))  
-            r_max_index = int(min(r_center+offset+margin,warped.shape[1]))
-            if np.max(conv_signal[r_min_index:r_max_index]) > 10000:
-                r_center = np.argmax(conv_signal[r_min_index:r_max_index])+r_min_index-offset
-            # Identify window boundaries in x and y (and right and left)
-            win_y_low = int(warped.shape[0]-(level+1)*window_height)
-            win_y_high = int(warped.shape[0]-(level)*window_height)
-            win_xleft_low = l_center - offset
-            win_xleft_high = l_center + offset
-            win_xright_low = r_center - offset
-            win_xright_high = r_center + offset
-            # Identify the nonzero pixels in x and y within the window
-            good_left_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & 
-            (nonzerox >= win_xleft_low) &  (nonzerox < win_xleft_high)).nonzero()[0]
-            good_right_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & 
-            (nonzerox >= win_xright_low) &  (nonzerox < win_xright_high)).nonzero()[0]
-            # Append these indices to the lists
-            left_lane_inds.append(good_left_inds)
-            right_lane_inds.append(good_right_inds)
+            # Go through each layer looking for max pixel locations
+            for level in range((int)(warped.shape[0]/window_height)):
+                # convolve the window into the vertical slice of the image
+                image_layer = np.sum(warped[int(warped.shape[0]-(level+1)*window_height):int(warped.shape[0]-level*window_height),:], axis=0)
+                conv_signal = np.convolve(window, image_layer)
+                # Find the best left centroid by using past left center as a reference
+                # Use window_width/2 as offset because convolution signal reference is at right side of window, not center of window
+                offset = window_width/2
+                l_min_index = int(max(l_center+offset-margin,0))
+                l_max_index = int(min(l_center+offset+margin,warped.shape[1]))
+                if np.max(conv_signal[l_min_index:l_max_index]) > 10000:
+                    l_center = np.argmax(conv_signal[l_min_index:l_max_index])+l_min_index-offset
+                # Find the best right centroid by using past right center as a reference
+                r_min_index = int(max(r_center+offset-margin,0))  
+                r_max_index = int(min(r_center+offset+margin,warped.shape[1]))
+                if np.max(conv_signal[r_min_index:r_max_index]) > 10000:
+                    r_center = np.argmax(conv_signal[r_min_index:r_max_index])+r_min_index-offset
+                # Identify window boundaries in x and y (and right and left)
+                win_y_low = int(warped.shape[0]-(level+1)*window_height)
+                win_y_high = int(warped.shape[0]-(level)*window_height)
+                win_xleft_low = l_center - offset
+                win_xleft_high = l_center + offset
+                win_xright_low = r_center - offset
+                win_xright_high = r_center + offset
+                # Identify the nonzero pixels in x and y within the window
+                good_left_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & 
+                (nonzerox >= win_xleft_low) &  (nonzerox < win_xleft_high)).nonzero()[0]
+                good_right_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & 
+                (nonzerox >= win_xright_low) &  (nonzerox < win_xright_high)).nonzero()[0]
+                # Append these indices to the lists
+                left_lane_inds.append(good_left_inds)
+                right_lane_inds.append(good_right_inds)
             
             
-        # Concatenate the arrays of indices
-        left_lane_inds = np.concatenate(left_lane_inds)
-        right_lane_inds = np.concatenate(right_lane_inds)
+            # Concatenate the arrays of indices
+            left_lane_inds = np.concatenate(left_lane_inds)
+            right_lane_inds = np.concatenate(right_lane_inds)
         
-        # Extract left and right line pixel positions
-        self.left_line.allx.append(nonzerox[left_lane_inds])
-        self.left_line.ally.append(nonzeroy[left_lane_inds])
-        self.right_line.allx.append(nonzerox[right_lane_inds])
-        self.right_line.ally.append(nonzeroy[right_lane_inds])
+            # Extract left and right line pixel positions
+            self.left_line.allx.append(nonzerox[left_lane_inds])
+            self.left_line.ally.append(nonzeroy[left_lane_inds])
+            self.right_line.allx.append(nonzerox[right_lane_inds])
+            self.right_line.ally.append(nonzeroy[right_lane_inds])
             
-        return self.left_line, self.right_line
-    
+            return self.left_line, self.right_line
+        else:
+            # It's now much easier to find line pixels!
+            nonzero = warped.nonzero()
+            nonzeroy = np.array(nonzero[0])
+            nonzerox = np.array(nonzero[1])
+            margin = self.margin
+            
+            left_fit = self.left_line.best_fit
+            right_fit = self.right_line.best_fit
+            
+            left_lane_inds = ((nonzerox > (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] - margin)) 
+                              & (nonzerox < (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] + margin))) 
+
+            right_lane_inds = ((nonzerox > (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] - margin)) 
+                               & (nonzerox < (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] + margin)))  
+
+            # Again, extract left and right line pixel positions
+            self.left_line.allx.append(nonzerox[left_lane_inds])
+            self.left_line.ally.append(nonzeroy[left_lane_inds])
+            self.right_line.allx.append(nonzerox[right_lane_inds])
+            self.right_line.ally.append(nonzeroy[right_lane_inds])
+            
+            return self.left_line, self.right_line
     
     def find_lines(self,warped):
         self.find_lane_pixels(warped)
@@ -162,13 +218,29 @@ class LineTracker():
         # Fit a second order polynomial to pixel positions in each lane line
         self.left_line.fit_line(self.smooth_factor, self.margin)            
         self.right_line.fit_line(self.smooth_factor, self.margin)
-
+        
+        self.lane_sanity_checks()
+        
         if self.left_line.detected:
             self.left_line.line_base_pos = (self.left_line.bestx[-1]-warped.shape[1]/2)*self.xm_per_pix
         if self.right_line.detected:
             self.right_line.line_base_pos = (self.right_line.bestx[-1]-warped.shape[1]/2)*self.xm_per_pix
         
         return self.left_line, self.right_line
+    
+    def lane_sanity_checks(self):
+        lane_width_near = (self.right_line.bestx[-1] - self.left_line.bestx[-1])*self.xm_per_pix
+        if lane_width_near < self.lane_width*0.8 or lane_width_near > self.lane_width*1.2:
+            self.left_line.detected = False
+            self.right_line.detected = False
+        lane_width_far = (self.right_line.bestx[0] - self.left_line.bestx[0])*self.xm_per_pix
+        if lane_width_far < self.lane_width*0.5 or lane_width_far > self.lane_width*1.6:
+            self.left_line.detected = False
+            self.right_line.detected = False
+        lane_width_mid = (self.right_line.bestx[(int)(len(self.right_line.bestx)/2)] - self.left_line.bestx[(int)(len(self.left_line.bestx)/2)])*self.xm_per_pix
+        if lane_width_mid < self.lane_width*0.65 or lane_width_mid > self.lane_width*1.4:
+            self.left_line.detected = False
+            self.right_line.detected = False
     
     # Note: This returns a bird eye view of road.
     def get_road_img(self, warped):
