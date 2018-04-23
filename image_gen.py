@@ -67,6 +67,10 @@ def process_image(img, dist_pickle, src, dst, thresholds, tracker):
 
     
 if __name__ == '__main__':
+    if len(sys.argv) < 4:
+        print("usage: image_gen.py image_path cal_image_folder_path parameter_file_path\n  note: remember to use trailing '/' in folder paths. e.g. camera_cal/")
+        sys.exit(1)
+        
     cal_image_path = sys.argv[2]
 
     # Read in the saved objpoints and imgpoints
@@ -75,7 +79,7 @@ if __name__ == '__main__':
     dist = dist_pickle["dist"]
 
     image_path = sys.argv[1]
-    image_file = image_path.split('\\')[-1]
+    image_file = image_path.split('/')[-1]
 
     # Test undistortion on an test image
     img = cv2.imread(image_path)
@@ -94,7 +98,7 @@ if __name__ == '__main__':
     thresholds = config['thresholds']
 
     result = pipeline(dst_img, thresholds['l_thresh'], thresholds['b_thresh'], thresholds['grad_thresh'], thresholds['dir_thresh'])
-    #cv2.imwrite('output_images/binary_combo_example.jpg',result)
+    cv2.imwrite('output_images/binary_'+image_file,result)
 
     # Visualize binary image
     plt.imshow(result,cmap='gray')
@@ -145,6 +149,9 @@ if __name__ == '__main__':
 
     cv2.fillPoly(out_img,[left_lane],color=[0,255,0])
     cv2.fillPoly(out_img,[right_lane],color=[0,255,0])
+    
+    cv2.putText(out_img, 'f_right(y) = ('+str(round(right_line.current_fit[0],4))+')*y^2+('+str(round(right_line.current_fit[1],3))+')*y+('+str(round(right_line.current_fit[2],1))+')',(500,50),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),2)
+    cv2.putText(out_img, 'f_left(y) = ('+str(round(left_line.current_fit[0],4))+')*y^2+('+str(round(left_line.current_fit[1],3))+')*y+('+str(round(left_line.current_fit[2],1))+')',(50,500),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),2)
 
     # Visualize binary image with line fit
     #plt.imshow(out_img)

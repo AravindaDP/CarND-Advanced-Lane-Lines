@@ -14,13 +14,17 @@ def process_video_clip(clip, dist_pickle,src, dst, thresholds, tracker):
 
 
 if __name__ == '__main__':
+    if len(sys.argv) < 4:
+        print("usage: video_gen.py video_path cal_image_folder_path parameter_file_path\n  note: remember to use trailing '/' in folder paths. e.g. camera_cal/")
+        sys.exit(1)
+
     cal_image_path = sys.argv[2]
 
     # Read in the saved objpoints and imgpoints
     dist_pickle = pickle.load(open(cal_image_path+"dist_pickle.p", "rb" ))
 
     Input_video = sys.argv[1]
-    video_file = Input_video.split('\\')[-1]
+    video_file = Input_video.split('/')[-1]
     Output_video = video_file.split('.')[0]+'_output.mp4'
 
     with open(sys.argv[3]) as f:

@@ -6,6 +6,9 @@ import pickle
 import sys
 
 if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        print("usage: camera_cal.py cal_image_folder_path\n  note: remember to use trailing '/' in folder path. e.g. camera_cal/")
+        sys.exit(1)
     # ## First, I'll compute the camera calibration using chessboard images
 
     # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
@@ -65,7 +68,7 @@ if __name__ == '__main__':
     ax1.set_title('Original Image', fontsize=30)
     ax2.imshow(dst_img)
     ax2.set_title('Undistorted Image', fontsize=30)
-    #f.savefig('output_images/undistort_output.jpg')
+    f.savefig('output_images/undistort_output.jpg')
     plt.show()
 
 
