@@ -122,7 +122,15 @@ I have saved all images of lanes mapped as `output_images/*_output.jpg`
 
 #### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!).
 
-Here's a [link to my video result](./project_video.mp4)
+Here's a [link to my video result](./project_video_output.mp4)
+
+Pipeline was tuned and run on challenge video as well. It works great except losing lane momentarily under the bridge due to change in lighting. (Note that tuned parameters for challenge video also works for project video as well though distance of mapped lane segment is reduced to 20m from 25m)
+
+Here's a [link to my challenge video result](./challenge_video_output.mp4)
+
+However harder challenge video required extensive tuning and reducing mapped lane segment length to 10m since it contains sharp turns. It works ok but loses the lane a few times due to very sharp turns and frequent changes is lighting.
+
+Here's a [link to my harder challenge video result](./harder_challenge_video_output.mp4)
 
 ---
 
@@ -130,4 +138,8 @@ Here's a [link to my video result](./project_video.mp4)
 
 #### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
 
-Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
+Here I have used a combination of color thresholding from L and B channels and magnitude and direction thresholds from gradient of L channel of LAB color space. I have hand tuned those thresholds along with other parameters like source and destination points of perspective transform as well as smoothing parameters from LaneTracker class.
+
+It is observed that while selected thresholds works fairly robust to detect lane line pixels, sudden changes of lighting make it hard to consistently detect lane line pixels. On the other hand, reducing the length of warped lane by tuning source and destination points helps in situations where sharp turns, but it requires solid lane lines on either side. (So, this won’t work for either project video or challenge video where dashed lines have as much as 10m gap between them.)
+
+To overcome above limitations, we could try to dynamically set the thresholds for pipeline based on the lighting condition and curvature of the lane. We could also examine more advanced filtering and brightness equalization techniques to make the pipeline more robust under sudden changes of light conditions.
