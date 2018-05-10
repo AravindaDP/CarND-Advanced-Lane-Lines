@@ -21,7 +21,7 @@ if __name__ == '__main__':
 
     cal_image_path = sys.argv[1]
     # Make a list of calibration images
-    images = glob.glob(cal_image_path+'calibration*.jpg')
+    images = glob.glob(cal_image_path+'*.jpg')
 
     # Step through the list and search for chessboard corners
     for fname in images:

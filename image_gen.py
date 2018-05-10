@@ -63,6 +63,18 @@ def process_image(img, dist_pickle, src, dst, thresholds, tracker):
         cv2.putText(result, 'Radius of Curvature = '+str(int(curverad))+'(m)',(50,50),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),2)
         cv2.putText(result,'Vehicle is '+str(abs(round(center_diff,2)))+'m '+side_pos+' of center',(50,100),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),2)
 
+        if left_line.line_base_pos > - 0.9 or right_line.line_base_pos < 0.9: #Approx half of average width of a car
+            cv2.putText(result,'Lane Departure Warning!',(50,150),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),2)
+            # Force detecting new lane positions
+            left_line.detected = False
+            right_line.detected = False
+            left_line.recent_xfitted = []
+            right_line.recent_xfitted = []
+            left_line.allx = [] 
+            right_line.allx = [] 
+            left_line.ally = [] 
+            right_line.ally = []
+            
     return result
 
     

@@ -34,6 +34,11 @@ class Line():
     def fit_line(self, smooth_factor, margin):
         allx_smooth = np.concatenate(self.allx[-smooth_factor:]).ravel()
         ally_smooth = np.concatenate(self.ally[-smooth_factor:]).ravel()
+        
+        if len(self.allx) > smooth_factor*2:
+            self.allx = self.allx[-smooth_factor:] # clip off to reduce memory
+        if len(self.ally) > smooth_factor*2:
+            self.ally = self.ally[-smooth_factor:] # clip off to reduce memory
         # Fit a second order polynomial to pixel positions in each lane line
         if(len(self.allx[-1])>350):
             previous_fit = self.current_fit
@@ -50,16 +55,21 @@ class Line():
                 self.recent_xfitted.append(fitx)
                 self.bestx = np.average(self.recent_xfitted[-smooth_factor:],axis = 0)
                 self.best_fit = np.polyfit(self.yvals, self.bestx, 2)
+                if len(self.recent_xfitted) > smooth_factor*2:
+                    self.recent_xfitted = self.recent_xfitted[-smooth_factor:] # clip off to reduce memory
+                if len(self.recent_yfitted) > smooth_factor*2:
+                    self.recent_yfitted = self.recent_yfitted[-smooth_factor:] # clip off to reduce memory
+        else:
+            self.detected = False
         
     def filter_fitx(self, fitx, margin):
         run_len = max(self.ally[-1])-min(self.ally[-1])
-        #best_fitx = self.best_fit[0]*self.yvals*self.yvals + self.best_fit[1]*self.yvals + self.best_fit[2]
         if not self.detected and len(self.allx[-1])>len(fitx)/2 and run_len > len(fitx)/3:
             for i in range(len(fitx)):
                 x_min = self.bestx[i] - margin*3
                 x_max = self.bestx[i] + margin*3
-            
                 fitx[i] = max(x_min,min(fitx[i],x_max))
+            
             return fitx
 
         if abs(self.bestx[0] - fitx[0]) > margin and run_len < len(fitx)/4:
@@ -77,9 +87,8 @@ class Line():
         for i in range(len(fitx)):
             x_min = self.bestx[i] - margin
             x_max = self.bestx[i] + margin
-            
             fitx[i] = max(x_min,min(fitx[i],x_max))
-            
+        
         return fitx
         
 

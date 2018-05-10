@@ -82,7 +82,7 @@ I have saved all warped binary images as `output_images/warped_*.jpg`
 
 #### 4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
 
-Then I used convolutions in conjunction with sliding window search to find the hot pixels belongs to the lane lines and fit my lane lines with a 2nd order polynomial to those identified pixels kind of like this:
+Then I used convolutions in conjunction with sliding window search to find the hot pixels that belongs to the lane lines and fit my lane lines with a 2nd order polynomial to those identified pixels kind of like this:
 
 ![alt text][image6]
 
@@ -128,9 +128,13 @@ Pipeline was tuned and run on challenge video as well. It works great except los
 
 Here's a [link to my challenge video result](./challenge_video_output.mp4)
 
-However harder challenge video required extensive tuning and reducing mapped lane segment length to 10m since it contains sharp turns. It works ok but loses the lane a few times due to very sharp turns and frequent changes is lighting.
+However harder challenge video required extensive tuning and reducing mapped lane segment length to 10m since it contains sharp turns. It works ok but loses the lane a few times due to very sharp turns and frequent changes in lighting.
 
 Here's a [link to my harder challenge video result](./harder_challenge_video_output.mp4)
+
+Furthermore, I have implemented this on my own video I've recorded myself. For this step, I also captured my own calibration images (These are saved under `./pg_camera_cal` folder) and calculated calibration and distortion coefficients. I also derived a separate set of source and destination points for perspective transformation of my own video.
+
+Here's a [link to my own video result](./fc2_save_2018-04-17-111311_output.mp4) 
 
 ---
 
